@@ -6,7 +6,8 @@
     "bootstrap": "^4.4.1",
     "ethers": "^5.4.7",
     "react": "^18.2.0",
-    "react-dom": "^18.2.0"
+    "react-dom": "^18.2.0",
+    "sweetalert2": "^11.12.4"
   },
   "devDependencies": {
     "react-scripts": "5.0.1"

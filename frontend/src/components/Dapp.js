@@ -7,14 +7,18 @@ import { NoWalletDetected } from "./NoWalletDetected";
 import { ConnectWallet } from "./ConnectWallet";
 import { Loading } from "./Loading";
 import { Deposit } from "./Transfer";
+import Swal from "sweetalert2";
 
-const HARDHAT_NETWORK_ID = "59141";
+const HARDHAT_NETWORK_ID = "97";
 const ERROR_CODE_TX_REJECTED_BY_USER = 4001;
 
 export const Dapp = () => {
   const [tokenData, setTokenData] = useState();
+  const [tokenERC721Data, setTokenERC721Data] = useState({
+    name: "",
+    symbol: "",
+  });
   const [selectedAddress, setSelectedAddress] = useState();
-  const [initialBalance, setInitialBalance] = useState();
   const [mintedBalance, setMintedBalance] = useState();
   const [networkError, setNetworkError] = useState();
 
@@ -59,9 +63,22 @@ export const Dapp = () => {
         provider.getSigner(0)
       );
       setDepositContract(depositContractInstance);
-      fetchNextTokenId(); // Fetch the nextTokenId after initializing the contract
+
+      // Fetch the ERC721 name and symbol
+      fetchERC721Data(depositContractInstance);
+      fetchNextTokenId();
     } catch (error) {
       console.error("Error initializing contracts:", error);
+    }
+  };
+
+  const fetchERC721Data = async (contract) => {
+    try {
+      const name = await contract.name();
+      const symbol = await contract.symbol();
+      setTokenERC721Data({ name, symbol });
+    } catch (error) {
+      console.error("Error fetching ERC721 data:", error);
     }
   };
 
@@ -92,7 +109,7 @@ export const Dapp = () => {
       const name = await tokenERC20.name();
       const symbol = await tokenERC20.symbol();
       setTokenData({ name, symbol });
-      await updateBalance(true); // Cập nhật số dư ban đầu
+      await updateBalance(true);
     } catch (error) {
       console.error("Error getting token data:", error);
     }
@@ -102,9 +119,6 @@ export const Dapp = () => {
     if (!tokenERC20 || !selectedAddress) return;
     try {
       const balance = await tokenERC20.balanceOf(selectedAddress);
-      if (isInitial) {
-        setInitialBalance(balance);
-      }
       setMintedBalance(balance);
     } catch (error) {
       console.error("Error updating balance:", error);
@@ -129,7 +143,13 @@ export const Dapp = () => {
       const tx = await tokenERC20.mint(amount);
       await tx.wait();
       console.log("Mint successful");
-      await updateBalance(); // Cập nhật số dư sau khi mint
+      Swal.fire({
+        title: "Success!",
+        text: `Successfully minted ${amount} tokens!`,
+        icon: "success",
+        confirmButtonText: "OK",
+      });
+      await updateBalance();
     } catch (error) {
       console.error("Mint failed:", error);
     }
@@ -156,10 +176,15 @@ export const Dapp = () => {
       if (receipt.status === 0) {
         throw new Error("Transaction failed");
       }
-
+      Swal.fire({
+        title: "Success!",
+        text: `Deposit successful`,
+        icon: "success",
+        confirmButtonText: "OK",
+      });
       await updateBalance();
       console.log("Deposit successful");
-      fetchNextTokenId(); // Fetch the updated nextTokenId after deposit
+      fetchNextTokenId();
     } catch (error) {
       if (error.code !== ERROR_CODE_TX_REJECTED_BY_USER) {
         console.error("Deposit failed:", error);
@@ -201,8 +226,8 @@ export const Dapp = () => {
 
   const resetState = () => {
     setTokenData(undefined);
+    setTokenERC721Data({ name: "", symbol: "" });
     setSelectedAddress(undefined);
-    setInitialBalance(undefined);
     setMintedBalance(undefined);
     setNetworkError(undefined);
   };
@@ -226,32 +251,50 @@ export const Dapp = () => {
   }
 
   return (
-    <div className="container p-4">
-      <div className="row">
-        <div className="col-12">
-          <h4>
-            Initial Balance: {initialBalance?.toString()} {tokenData.symbol}
-          </h4>
-          <h4>
-            Minted Balance: {mintedBalance?.toString()} {tokenData.symbol}
-          </h4>
-          <h4>Next Token ID: {nextTokenId}</h4>
+    <div className="container my-4">
+      <div className="row text-center">
+        <div className="col-lg-4 col-md-6 mb-4">
+          <div className="card p-3 shadow-sm border-light">
+            <h4 className="mb-3">
+              Minted Balance: {mintedBalance?.toString()} {tokenData.symbol}
+            </h4>
+            <button
+              onClick={() => mintTokens(10000)}
+              className="btn btn-primary btn-lg w-100"
+            >
+              Mint 10000 Tokens
+            </button>
+          </div>
         </div>
-      </div>
-      <div className="row">
-        <div className="col-12">
-          <button onClick={() => mintTokens(10000)} className="btn btn-primary">
-            Mint 10000 Tokens
-          </button>
+
+        <div className="col-lg-4 col-md-6 mb-4">
+          <div className="card p-3 shadow-sm border-light">
+            <Deposit
+              depositTokens={depositTokens}
+              tokenSymbol={tokenData.symbol}
+            />
+          </div>
         </div>
-      </div>
-      <div className="row">
-        <div className="col-4">
-          <Deposit
-            depositTokens={depositTokens}
-            tokenSymbol={tokenData.symbol}
-          />
+
+        <div className="col-lg-4 col-md-12 mb-4">
+          <div className="card p-3 shadow-sm border-light text-center">
+            <div>Token ID: {nextTokenId}</div>
+            {`${nextTokenId}` === "1" ? (
+              <h4>
+                Holding: {nextTokenId} {tokenERC721Data.symbol}
+              </h4>
+            ) : (
+              <h4>Holding 0 {tokenERC721Data.symbol}</h4>
+            )}
+          </div>
         </div>
+
+        {/* <div className="col-lg-4 col-md-12 mb-4">
+          <div className="card p-3 shadow-sm border-light text-center">
+            <h4>NFT Name: {tokenERC721Data.name}</h4>
+            <h5>NFT Symbol: {tokenERC721Data.symbol}</h5>
+          </div>
+        </div> */}
       </div>
     </div>
   );
